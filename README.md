@@ -11,8 +11,9 @@ What it does: verifies winget, installs git **only if missing**, clones the
 by onboarding — installs the repo push guard, then hands off to the repo's own
 provisioning script (Node, Claude Code, Python pipeline, document tooling).
 
-You will be asked one question: **Dedicated** machine (fresh VPS — full config
-restore) or **Personal** machine (your existing Claude setup stays untouched).
+On a fresh machine it configures everything silently. If an existing Claude
+setup is detected, it asks whether to keep it (recommended — the agent stays
+project-scoped) or replace it. It finishes by launching Claude to sign in.
 
 Contains no secrets. Access to the agent repo itself is gated by GitHub
 permissions — this installer cannot grant them.
