@@ -10,14 +10,22 @@
 # Overrides (set before invoking):
 #   $env:HOP_BOOTSTRAP_ORG   (default: offersandsystems)
 #   $env:HOP_BOOTSTRAP_REPO  (default: agents-HOP)
-#   $env:HOP_BOOTSTRAP_DEST  (default: %USERPROFILE%\PD)
+#   $env:HOP_BOOTSTRAP_DEST  (default: Desktop\PD; prompts if unset)
 #   $env:HOP_BOOTSTRAP_MODE  ('dedicated' | 'personal'; prompts if unset)
 
 $ErrorActionPreference = 'Stop'
 
 $Org  = if ($env:HOP_BOOTSTRAP_ORG)  { $env:HOP_BOOTSTRAP_ORG }  else { 'offersandsystems' }
 $Repo = if ($env:HOP_BOOTSTRAP_REPO) { $env:HOP_BOOTSTRAP_REPO } else { 'agents-HOP' }
-$Dest = if ($env:HOP_BOOTSTRAP_DEST) { $env:HOP_BOOTSTRAP_DEST } else { Join-Path $env:USERPROFILE 'PD' }
+
+# Destination: Desktop\PD (Product Department) by default — visible, predictable.
+# GetFolderPath handles OneDrive-redirected Desktops; env var skips the prompt.
+$DefaultDest = Join-Path ([Environment]::GetFolderPath('Desktop')) 'PD'
+$Dest = $env:HOP_BOOTSTRAP_DEST
+if (-not $Dest) {
+    $ans = Read-Host "Install location [$DefaultDest]"
+    $Dest = if ([string]::IsNullOrWhiteSpace($ans)) { $DefaultDest } else { $ans.Trim() }
+}
 
 # Machine type decides whether global ~/.claude config is restored (dedicated
 # VPS) or left untouched (personal machine with its own Claude setup).
