@@ -11,7 +11,9 @@
 #   $env:HOP_BOOTSTRAP_ORG   (default: offersandsystems)
 #   $env:HOP_BOOTSTRAP_REPO  (default: agents-HOP)
 #   $env:HOP_BOOTSTRAP_DEST  (default: Desktop\PD; prompts if unset)
-#   $env:HOP_BOOTSTRAP_MODE  ('dedicated' | 'personal'; prompts if unset)
+#   $env:HOP_BOOTSTRAP_MODE   ('dedicated' | 'personal'; prompts if unset)
+#   $env:HOP_BOOTSTRAP_LAUNCH ('no' skips the final Claude launch; for headless
+#                              provisioning where ANTHROPIC_API_KEY is preset)
 
 $ErrorActionPreference = 'Stop'
 
@@ -94,10 +96,24 @@ $setupArgs = @{ Workspace = $RepoPath }
 if ($Mode -eq 'personal') { $setupArgs.Personal = $true }
 & $setup @setupArgs
 
-# ---- 6. what remains manual ---------------------------------------------------------
+# ---- 6. end in OPERATING state: launch Claude for login + trust ---------------------
 Write-Host ''
 Write-Host '== bootstrap complete ==' -ForegroundColor Cyan
-Write-Host 'Remaining manual steps:'
-Write-Host "  1. cd `"$RepoPath`""
-Write-Host '  2. claude          # log in + accept workspace trust'
-Write-Host '  3. git config user.name "..." ; git config user.email "..."   # if you will commit'
+Write-Host 'If you will commit: git config user.name "..." ; git config user.email "..."'
+Write-Host ''
+
+$launch = $env:HOP_BOOTSTRAP_LAUNCH
+if ($launch -ne 'no' -and (Get-Command claude -ErrorAction SilentlyContinue)) {
+    $ans = Read-Host 'Launch Claude now to sign in? [Y/n]'
+    if ($ans -notmatch '^\s*n') {
+        Set-Location $RepoPath
+        Write-Host '-- launching Claude (sign in, then accept the workspace trust prompt)...'
+        claude
+    } else {
+        Write-Host "Next: cd `"$RepoPath`" ; claude   # log in + accept workspace trust"
+    }
+} elseif ($launch -eq 'no') {
+    Write-Host 'Launch skipped (HOP_BOOTSTRAP_LAUNCH=no). Headless auth: set ANTHROPIC_API_KEY.'
+} else {
+    Write-Host "claude not on PATH yet - open a NEW terminal, then: cd `"$RepoPath`" ; claude"
+}
