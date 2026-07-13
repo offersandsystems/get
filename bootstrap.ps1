@@ -105,14 +105,25 @@ $setupArgs = @{ Workspace = $RepoPath }
 if ($Mode -eq 'personal') { $setupArgs.Personal = $true }
 & $setup @setupArgs
 
-# ---- 6. end in OPERATING state: launch Claude for login + trust ---------------------
+# ---- 6. end in OPERATING state: onboarding (boot screen -> intake -> first asset) ----
 Write-Host ''
 Write-Host '== bootstrap complete ==' -ForegroundColor Cyan
 Write-Host 'If you will commit: git config user.name "..." ; git config user.email "..."'
 Write-Host ''
 
 $launch = $env:HOP_BOOTSTRAP_LAUNCH
-if ($launch -ne 'no' -and (Get-Command claude -ErrorAction SilentlyContinue)) {
+if ($launch -eq 'no') {
+    Write-Host 'Launch skipped (HOP_BOOTSTRAP_LAUNCH=no). Headless auth: set ANTHROPIC_API_KEY.'
+} elseif (Get-Command hop-claude -ErrorAction SilentlyContinue) {
+    $ans = Read-Host 'Start HOP onboarding now? [Y/n]'
+    if ($ans -notmatch '^\s*n') {
+        Set-Location $RepoPath
+        Write-Host '-- launching onboarding (first Claude launch will ask you to sign in + trust the workspace)...'
+        hop-claude
+    } else {
+        Write-Host "Next: cd `"$RepoPath`" ; hop-claude   # boot screen + onboarding"
+    }
+} elseif (Get-Command claude -ErrorAction SilentlyContinue) {
     $ans = Read-Host 'Launch Claude now to sign in? [Y/n]'
     if ($ans -notmatch '^\s*n') {
         Set-Location $RepoPath
@@ -121,8 +132,6 @@ if ($launch -ne 'no' -and (Get-Command claude -ErrorAction SilentlyContinue)) {
     } else {
         Write-Host "Next: cd `"$RepoPath`" ; claude   # log in + accept workspace trust"
     }
-} elseif ($launch -eq 'no') {
-    Write-Host 'Launch skipped (HOP_BOOTSTRAP_LAUNCH=no). Headless auth: set ANTHROPIC_API_KEY.'
 } else {
-    Write-Host "claude not on PATH yet - open a NEW terminal, then: cd `"$RepoPath`" ; claude"
+    Write-Host "claude not on PATH yet - open a NEW terminal, then: cd `"$RepoPath`" ; hop-claude"
 }
