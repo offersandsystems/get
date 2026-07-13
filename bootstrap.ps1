@@ -1,4 +1,4 @@
-# bootstrap.ps1 — HOP one-liner installer for fresh Windows machines.
+﻿# bootstrap.ps1 — HOP one-liner installer for fresh Windows machines.
 # Breaks the bootstrap paradox: installs git, clones the repo, hands off to
 # env\claude-env\setup-windows.ps1. Contains NOTHING sensitive — safe to publish.
 #
