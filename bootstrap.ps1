@@ -11,7 +11,9 @@
 #   $env:HOP_BOOTSTRAP_ORG   (default: offersandsystems)
 #   $env:HOP_BOOTSTRAP_REPO  (default: agents-HOP)
 #   $env:HOP_BOOTSTRAP_DEST  (default: Desktop\PD; prompts if unset)
-#   $env:HOP_BOOTSTRAP_MODE   ('dedicated' | 'personal'; prompts if unset)
+#   $env:HOP_BOOTSTRAP_MODE   ('dedicated' | 'personal'; if unset, auto-detects:
+#                              no existing ~/.claude config -> dedicated silently;
+#                              existing config -> asks keep (personal) or replace)
 #   $env:HOP_BOOTSTRAP_LAUNCH ('no' skips the final Claude launch; for headless
 #                              provisioning where ANTHROPIC_API_KEY is preset)
 
@@ -29,12 +31,19 @@ if (-not $Dest) {
     $Dest = if ([string]::IsNullOrWhiteSpace($ans)) { $DefaultDest } else { $ans.Trim() }
 }
 
-# Machine type decides whether global ~/.claude config is restored (dedicated
-# VPS) or left untouched (personal machine with its own Claude setup).
+# Config mode by DETECTION, not interrogation. Fresh machine (no ~/.claude
+# config) -> first agent here, full restore, no question. Existing config ->
+# someone lives here (the user's own setup, or another agent employee) -> keep
+# is the safe default; replacing is the exception. Covers personal laptops and
+# multi-agent machines with the same rule. Override: HOP_BOOTSTRAP_MODE.
 $Mode = $env:HOP_BOOTSTRAP_MODE
 if (-not $Mode) {
-    $ans = Read-Host 'Machine type: [D]edicated (fresh VPS - full config restore) or [P]ersonal (keep my existing Claude config)? [D/p]'
-    $Mode = if ($ans -match '^\s*p') { 'personal' } else { 'dedicated' }
+    if (Test-Path (Join-Path $env:USERPROFILE '.claude\settings.json')) {
+        $ans = Read-Host "Existing Claude config detected - [K]eep it (recommended) or [R]eplace with this agent's config? [K/r]"
+        $Mode = if ($ans -match '^\s*r') { 'dedicated' } else { 'personal' }
+    } else {
+        $Mode = 'dedicated'   # fresh machine: full restore, silently
+    }
 }
 
 Write-Host ''
