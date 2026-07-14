@@ -107,6 +107,9 @@ if (Test-Path (Join-Path $RepoPath '.git')) {
 } else {
     Write-Host "-- cloning $Org/$Repo (a browser window may open to sign in to GitHub)..."
     git clone "https://github.com/$Org/$Repo.git" $RepoPath
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "git clone failed (exit $LASTEXITCODE) - see git's message above. Common causes: destination not empty, no repo access, cancelled sign-in."
+    }
 }
 
 # ---- 4. per-clone git wiring ------------------------------------------------------

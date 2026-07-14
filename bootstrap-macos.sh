@@ -62,7 +62,10 @@ elif [ -d "$REPO_PATH" ] && [ -n "$(ls -A "$REPO_PATH" 2>/dev/null)" ]; then
     exit 1
 else
     echo "-- cloning $ORG/$REPO (sign in with your GitHub username + PAT when prompted)..."
-    git clone "https://github.com/$ORG/$REPO.git" "$REPO_PATH"
+    git clone "https://github.com/$ORG/$REPO.git" "$REPO_PATH" || {
+        echo "git clone failed - see git's message above. Common causes: destination not empty, no repo access, cancelled sign-in." >&2
+        exit 1
+    }
 fi
 
 # ---- 3. per-clone git wiring ----------------------------------------------------------
