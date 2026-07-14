@@ -24,11 +24,15 @@ fi
 
 ORG="${HOP_BOOTSTRAP_ORG:-offersandsystems}"
 REPO="${HOP_BOOTSTRAP_REPO:-agents-HOP}"
-DEST="${HOP_BOOTSTRAP_DEST:-$HOME/PD}"
+# Destination = THIS AGENT'S folder: repo contents land directly inside it.
+DEST="${HOP_BOOTSTRAP_DEST:-$HOME/PD/$REPO}"
 
-# Full install transcript -> $DEST/install-log.txt (captures failed runs too).
-mkdir -p "$DEST"
-INSTALL_LOG="$DEST/install-log.txt"
+# Full install transcript -> install-log.txt in the PARENT of the agent folder
+# (the folder itself must stay empty/absent for git clone; the parent collects
+# one consolidated log across multiple agent installs).
+DEST_PARENT="$(dirname "$DEST")"
+mkdir -p "$DEST_PARENT"
+INSTALL_LOG="$DEST_PARENT/install-log.txt"
 exec > >(tee -a "$INSTALL_LOG") 2>&1
 
 echo ""
@@ -49,10 +53,13 @@ else
 fi
 
 # ---- 2. clone ----------------------------------------------------------------------
-mkdir -p "$DEST"
-REPO_PATH="$DEST/$REPO"
+# Repo contents go DIRECTLY into $DEST.
+REPO_PATH="$DEST"
 if [ -d "$REPO_PATH/.git" ]; then
     echo "-- repo already cloned at $REPO_PATH"
+elif [ -d "$REPO_PATH" ] && [ -n "$(ls -A "$REPO_PATH" 2>/dev/null)" ]; then
+    echo "Install folder exists and is not empty (and not a clone): $REPO_PATH - choose an empty or new folder." >&2
+    exit 1
 else
     echo "-- cloning $ORG/$REPO (sign in with your GitHub username + PAT when prompted)..."
     git clone "https://github.com/$ORG/$REPO.git" "$REPO_PATH"

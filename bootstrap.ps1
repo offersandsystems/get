@@ -22,12 +22,13 @@ $ErrorActionPreference = 'Stop'
 $Org  = if ($env:HOP_BOOTSTRAP_ORG)  { $env:HOP_BOOTSTRAP_ORG }  else { 'offersandsystems' }
 $Repo = if ($env:HOP_BOOTSTRAP_REPO) { $env:HOP_BOOTSTRAP_REPO } else { 'agents-HOP' }
 
-# Destination: Desktop\PD (Product Department) by default — visible, predictable.
-# GetFolderPath handles OneDrive-redirected Desktops; env var skips the prompt.
-$DefaultDest = Join-Path ([Environment]::GetFolderPath('Desktop')) 'PD'
+# Destination = THIS AGENT'S folder: repo contents land directly inside it
+# (no agents-HOP subfolder). Default: Desktop\PD\<repo>. GetFolderPath handles
+# OneDrive-redirected Desktops; env var skips the prompt.
+$DefaultDest = Join-Path ([Environment]::GetFolderPath('Desktop')) (Join-Path 'PD' $Repo)
 $Dest = $env:HOP_BOOTSTRAP_DEST
 if (-not $Dest) {
-    Write-Host 'Confirm install location - press Enter to accept, or type a different path.'
+    Write-Host 'Confirm install folder for this agent (repo contents land directly here) - press Enter to accept, or type a different path.'
     $ans = Read-Host "[$DefaultDest]"
     $Dest = if ([string]::IsNullOrWhiteSpace($ans)) { $DefaultDest } else { $ans.Trim() }
 }
@@ -48,10 +49,14 @@ if (-not $Mode) {
     }
 }
 
-# Full install transcript -> <dest>\install-log.txt (flushed live, so failed
-# runs are captured too). Stopped before the interactive onboarding launch.
-New-Item -ItemType Directory -Force $Dest | Out-Null
-try { Start-Transcript -Path (Join-Path $Dest 'install-log.txt') -Append | Out-Null } catch {}
+# Full install transcript -> install-log.txt in the PARENT of the agent folder
+# (the folder itself must stay empty/absent for git clone; the parent also
+# collects one consolidated log across multiple agent installs).
+$DestParent = Split-Path $Dest -Parent
+if (-not $DestParent) { $DestParent = $Dest }
+New-Item -ItemType Directory -Force $DestParent | Out-Null
+$InstallLog = Join-Path $DestParent 'install-log.txt'
+try { Start-Transcript -Path $InstallLog -Append | Out-Null } catch {}
 
 Write-Host ''
 Write-Host '== HOP bootstrap ==' -ForegroundColor Cyan
@@ -92,9 +97,13 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 # ---- 3. clone ------------------------------------------------------------------
 # Private repo: Git Credential Manager (ships with Git) opens a browser sign-in
 # on first clone. Access is granted by OfferControl onboarding beforehand.
-$RepoPath = Join-Path $Dest $Repo
+# Repo contents go DIRECTLY into $Dest (git creates it, or clones into an
+# existing empty folder).
+$RepoPath = $Dest
 if (Test-Path (Join-Path $RepoPath '.git')) {
     Write-Host "-- repo already cloned at $RepoPath"
+} elseif ((Test-Path $RepoPath) -and (Get-ChildItem $RepoPath -Force | Select-Object -First 1)) {
+    Write-Error "Install folder exists and is not empty (and not a clone): $RepoPath - choose an empty or new folder."
 } else {
     Write-Host "-- cloning $Org/$Repo (a browser window may open to sign in to GitHub)..."
     git clone "https://github.com/$Org/$Repo.git" $RepoPath
@@ -119,7 +128,7 @@ if ($Mode -eq 'personal') { $setupArgs.Personal = $true }
 # ---- 6. end in OPERATING state: onboarding (boot screen -> intake -> first asset) ----
 Write-Host ''
 Write-Host '== bootstrap complete ==' -ForegroundColor Cyan
-Write-Host "   install log: $(Join-Path $Dest 'install-log.txt')"
+Write-Host "   install log: $InstallLog"
 Write-Host 'If you will commit: git config user.name "..." ; git config user.email "..."'
 Write-Host ''
 # Stop logging before the interactive agent session begins.

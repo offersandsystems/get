@@ -16,11 +16,15 @@ REPO="${HOP_BOOTSTRAP_REPO:-agents-HOP}"
 # Running under sudo: install for the invoking user, not root.
 RUN_USER="${SUDO_USER:-$(id -un)}"
 RUN_HOME="$(getent passwd "$RUN_USER" | cut -d: -f6)"
-DEST="${HOP_BOOTSTRAP_DEST:-$RUN_HOME/PD}"
+# Destination = THIS AGENT'S folder: repo contents land directly inside it.
+DEST="${HOP_BOOTSTRAP_DEST:-$RUN_HOME/PD/$REPO}"
 
-# Full install transcript -> $DEST/install-log.txt (captures failed runs too).
-mkdir -p "$DEST"
-INSTALL_LOG="$DEST/install-log.txt"
+# Full install transcript -> install-log.txt in the PARENT of the agent folder
+# (the folder itself must stay empty/absent for git clone; the parent collects
+# one consolidated log across multiple agent installs).
+DEST_PARENT="$(dirname "$DEST")"
+mkdir -p "$DEST_PARENT" && chown "$RUN_USER" "$DEST_PARENT" 2>/dev/null || true
+INSTALL_LOG="$DEST_PARENT/install-log.txt"
 exec > >(tee -a "$INSTALL_LOG") 2>&1
 
 echo ""
@@ -45,10 +49,13 @@ else
 fi
 
 # ---- 2. clone (as the real user; GCM is not present — HTTPS prompts or PAT) ------
-mkdir -p "$DEST" && chown "$RUN_USER" "$DEST"
-REPO_PATH="$DEST/$REPO"
+# Repo contents go DIRECTLY into $DEST.
+REPO_PATH="$DEST"
 if [ -d "$REPO_PATH/.git" ]; then
     echo "-- repo already cloned at $REPO_PATH"
+elif [ -d "$REPO_PATH" ] && [ -n "$(ls -A "$REPO_PATH" 2>/dev/null)" ]; then
+    echo "Install folder exists and is not empty (and not a clone): $REPO_PATH - choose an empty or new folder." >&2
+    exit 1
 else
     echo "-- cloning $ORG/$REPO (sign in with your GitHub username + PAT when prompted)..."
     sudo -u "$RUN_USER" git clone "https://github.com/$ORG/$REPO.git" "$REPO_PATH"
