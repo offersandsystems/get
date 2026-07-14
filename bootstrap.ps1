@@ -55,7 +55,7 @@ if (-not $Mode) {
 $DestParent = Split-Path $Dest -Parent
 if (-not $DestParent) { $DestParent = $Dest }
 New-Item -ItemType Directory -Force $DestParent | Out-Null
-$InstallLog = Join-Path $DestParent 'install-log.txt'
+$InstallLog = Join-Path $DestParent ('install-log-' + (Get-Date -Format 'yyyy-MM-dd') + '.log')
 try { Start-Transcript -Path $InstallLog -Append | Out-Null } catch {}
 
 Write-Host ''
@@ -131,11 +131,17 @@ if ($Mode -eq 'personal') { $setupArgs.Personal = $true }
 # ---- 6. end in OPERATING state: onboarding (boot screen -> intake -> first asset) ----
 Write-Host ''
 Write-Host '== bootstrap complete ==' -ForegroundColor Cyan
-Write-Host "   install log: $InstallLog"
 Write-Host 'If you will commit: git config user.name "..." ; git config user.email "..."'
 Write-Host ''
-# Stop logging before the interactive agent session begins.
+# Stop logging before the interactive agent session begins, then file the log
+# in the repo (reports\logs\) — failed runs leave it at the parent for triage.
 try { Stop-Transcript | Out-Null } catch {}
+try {
+    $logDir = Join-Path $RepoPath 'reports\logs'
+    New-Item -ItemType Directory -Force $logDir | Out-Null
+    Move-Item $InstallLog -Destination $logDir -Force
+    Write-Host "   install log filed: $(Join-Path $logDir (Split-Path $InstallLog -Leaf))"
+} catch {}
 
 # Interactive children must be launched via Start-Process: under `iwr | iex`
 # the session's inherited stdin is the exhausted pipeline, so node/claude

@@ -24,7 +24,7 @@ DEST="${HOP_BOOTSTRAP_DEST:-$RUN_HOME/PD/$REPO}"
 # one consolidated log across multiple agent installs).
 DEST_PARENT="$(dirname "$DEST")"
 mkdir -p "$DEST_PARENT" && chown "$RUN_USER" "$DEST_PARENT" 2>/dev/null || true
-INSTALL_LOG="$DEST_PARENT/install-log.txt"
+INSTALL_LOG="$DEST_PARENT/install-log-$(date +%F).log"
 exec > >(tee -a "$INSTALL_LOG") 2>&1
 
 echo ""
@@ -85,10 +85,14 @@ bash "$SETUP" "$REPO_PATH" $SETUP_FLAGS
 
 # ---- 5. end in OPERATING state ---------------------------------------------------------
 echo ""
-echo "== bootstrap complete == (log: $INSTALL_LOG)"
+echo "== bootstrap complete =="
 chown "$RUN_USER" "$INSTALL_LOG" 2>/dev/null || true
-# Detach logging before the interactive agent session begins.
+# Detach logging, then file the log in the repo (failed runs leave it at parent).
 exec > /dev/tty 2>&1 || true
+LOG_DIR="$REPO_PATH/reports/logs"
+mkdir -p "$LOG_DIR" 2>/dev/null && mv -f "$INSTALL_LOG" "$LOG_DIR/" 2>/dev/null \
+    && chown "$RUN_USER" "$LOG_DIR/$(basename "$INSTALL_LOG")" 2>/dev/null \
+    && echo "   install log filed: $LOG_DIR/$(basename "$INSTALL_LOG")" || true
 if [ "${HOP_BOOTSTRAP_LAUNCH:-}" = "no" ]; then
     echo "Launch skipped (HOP_BOOTSTRAP_LAUNCH=no). Headless auth: set ANTHROPIC_API_KEY."
 elif [ -t 0 ] && sudo -u "$RUN_USER" bash -lc 'command -v hop-claude' >/dev/null 2>&1; then

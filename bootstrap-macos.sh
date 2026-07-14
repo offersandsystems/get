@@ -32,7 +32,7 @@ DEST="${HOP_BOOTSTRAP_DEST:-$HOME/PD/$REPO}"
 # one consolidated log across multiple agent installs).
 DEST_PARENT="$(dirname "$DEST")"
 mkdir -p "$DEST_PARENT"
-INSTALL_LOG="$DEST_PARENT/install-log.txt"
+INSTALL_LOG="$DEST_PARENT/install-log-$(date +%F).log"
 exec > >(tee -a "$INSTALL_LOG") 2>&1
 
 echo ""
@@ -88,9 +88,12 @@ bash "$SETUP" "$REPO_PATH" $SETUP_FLAGS
 
 # ---- 5. end in OPERATING state --------------------------------------------------------------
 echo ""
-echo "== bootstrap complete == (log: $INSTALL_LOG)"
-# Detach logging before the interactive agent session begins.
+echo "== bootstrap complete =="
+# Detach logging, then file the log in the repo (failed runs leave it at parent).
 exec > /dev/tty 2>&1 || true
+LOG_DIR="$REPO_PATH/reports/logs"
+mkdir -p "$LOG_DIR" 2>/dev/null && mv -f "$INSTALL_LOG" "$LOG_DIR/" 2>/dev/null \
+    && echo "   install log filed: $LOG_DIR/$(basename "$INSTALL_LOG")" || true
 if [ "${HOP_BOOTSTRAP_LAUNCH:-}" = "no" ]; then
     echo "Launch skipped (HOP_BOOTSTRAP_LAUNCH=no). Headless auth: set ANTHROPIC_API_KEY."
 elif [ -t 0 ] && command -v hop-claude >/dev/null 2>&1; then
