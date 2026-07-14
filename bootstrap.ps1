@@ -27,7 +27,8 @@ $Repo = if ($env:HOP_BOOTSTRAP_REPO) { $env:HOP_BOOTSTRAP_REPO } else { 'agents-
 $DefaultDest = Join-Path ([Environment]::GetFolderPath('Desktop')) 'PD'
 $Dest = $env:HOP_BOOTSTRAP_DEST
 if (-not $Dest) {
-    $ans = Read-Host "Install location [$DefaultDest]"
+    Write-Host 'Confirm install location - press Enter to accept, or type a different path.'
+    $ans = Read-Host "[$DefaultDest]"
     $Dest = if ([string]::IsNullOrWhiteSpace($ans)) { $DefaultDest } else { $ans.Trim() }
 }
 
@@ -39,7 +40,8 @@ if (-not $Dest) {
 $Mode = $env:HOP_BOOTSTRAP_MODE
 if (-not $Mode) {
     if (Test-Path (Join-Path $env:USERPROFILE '.claude\settings.json')) {
-        $ans = Read-Host "Existing Claude config detected - [K]eep it (recommended) or [R]eplace with this agent's config? [K/r]"
+        Write-Host 'Existing Claude config detected - press Enter to keep it (recommended), or type R to replace it with this agent''s config.'
+        $ans = Read-Host '[K/r]'
         $Mode = if ($ans -match '^\s*r') { 'dedicated' } else { 'personal' }
     } else {
         $Mode = 'dedicated'   # fresh machine: full restore, silently
