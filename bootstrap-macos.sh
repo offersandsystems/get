@@ -26,10 +26,16 @@ ORG="${HOP_BOOTSTRAP_ORG:-offersandsystems}"
 REPO="${HOP_BOOTSTRAP_REPO:-agents-HOP}"
 DEST="${HOP_BOOTSTRAP_DEST:-$HOME/PD}"
 
+# Full install transcript -> $DEST/install-log.txt (captures failed runs too).
+mkdir -p "$DEST"
+INSTALL_LOG="$DEST/install-log.txt"
+exec > >(tee -a "$INSTALL_LOG") 2>&1
+
 echo ""
-echo "== HOP bootstrap (macOS) =="
+echo "== HOP bootstrap (macOS) — $(date) =="
 echo "   repo: $ORG/$REPO"
 echo "   dest: $DEST"
+echo "   log:  $INSTALL_LOG"
 echo ""
 
 # ---- 1. git (macOS: first git use triggers the Xcode CLT install dialog) ---------
@@ -72,7 +78,9 @@ bash "$SETUP" "$REPO_PATH" $SETUP_FLAGS
 
 # ---- 5. end in OPERATING state --------------------------------------------------------------
 echo ""
-echo "== bootstrap complete =="
+echo "== bootstrap complete == (log: $INSTALL_LOG)"
+# Detach logging before the interactive agent session begins.
+exec > /dev/tty 2>&1 || true
 if [ "${HOP_BOOTSTRAP_LAUNCH:-}" = "no" ]; then
     echo "Launch skipped (HOP_BOOTSTRAP_LAUNCH=no). Headless auth: set ANTHROPIC_API_KEY."
 elif [ -t 0 ] && command -v hop-claude >/dev/null 2>&1; then

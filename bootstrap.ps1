@@ -48,6 +48,11 @@ if (-not $Mode) {
     }
 }
 
+# Full install transcript -> <dest>\install-log.txt (flushed live, so failed
+# runs are captured too). Stopped before the interactive onboarding launch.
+New-Item -ItemType Directory -Force $Dest | Out-Null
+try { Start-Transcript -Path (Join-Path $Dest 'install-log.txt') -Append | Out-Null } catch {}
+
 Write-Host ''
 Write-Host '== HOP bootstrap ==' -ForegroundColor Cyan
 Write-Host "   repo: $Org/$Repo"
@@ -87,7 +92,6 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 # ---- 3. clone ------------------------------------------------------------------
 # Private repo: Git Credential Manager (ships with Git) opens a browser sign-in
 # on first clone. Access is granted by OfferControl onboarding beforehand.
-New-Item -ItemType Directory -Force $Dest | Out-Null
 $RepoPath = Join-Path $Dest $Repo
 if (Test-Path (Join-Path $RepoPath '.git')) {
     Write-Host "-- repo already cloned at $RepoPath"
@@ -115,8 +119,11 @@ if ($Mode -eq 'personal') { $setupArgs.Personal = $true }
 # ---- 6. end in OPERATING state: onboarding (boot screen -> intake -> first asset) ----
 Write-Host ''
 Write-Host '== bootstrap complete ==' -ForegroundColor Cyan
+Write-Host "   install log: $(Join-Path $Dest 'install-log.txt')"
 Write-Host 'If you will commit: git config user.name "..." ; git config user.email "..."'
 Write-Host ''
+# Stop logging before the interactive agent session begins.
+try { Stop-Transcript | Out-Null } catch {}
 
 $launch = $env:HOP_BOOTSTRAP_LAUNCH
 if ($launch -eq 'no') {

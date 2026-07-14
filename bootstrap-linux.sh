@@ -18,10 +18,16 @@ RUN_USER="${SUDO_USER:-$(id -un)}"
 RUN_HOME="$(getent passwd "$RUN_USER" | cut -d: -f6)"
 DEST="${HOP_BOOTSTRAP_DEST:-$RUN_HOME/PD}"
 
+# Full install transcript -> $DEST/install-log.txt (captures failed runs too).
+mkdir -p "$DEST"
+INSTALL_LOG="$DEST/install-log.txt"
+exec > >(tee -a "$INSTALL_LOG") 2>&1
+
 echo ""
-echo "== HOP bootstrap (linux) =="
+echo "== HOP bootstrap (linux) — $(date) =="
 echo "   repo: $ORG/$REPO"
 echo "   dest: $DEST"
+echo "   log:  $INSTALL_LOG"
 echo ""
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -69,7 +75,10 @@ bash "$SETUP" "$REPO_PATH" $SETUP_FLAGS
 
 # ---- 5. end in OPERATING state ---------------------------------------------------------
 echo ""
-echo "== bootstrap complete =="
+echo "== bootstrap complete == (log: $INSTALL_LOG)"
+chown "$RUN_USER" "$INSTALL_LOG" 2>/dev/null || true
+# Detach logging before the interactive agent session begins.
+exec > /dev/tty 2>&1 || true
 if [ "${HOP_BOOTSTRAP_LAUNCH:-}" = "no" ]; then
     echo "Launch skipped (HOP_BOOTSTRAP_LAUNCH=no). Headless auth: set ANTHROPIC_API_KEY."
 elif [ -t 0 ] && sudo -u "$RUN_USER" bash -lc 'command -v hop-claude' >/dev/null 2>&1; then
