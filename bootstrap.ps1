@@ -70,7 +70,12 @@ if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
 # ---- 2. git ------------------------------------------------------------------
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     Write-Host '-- installing git...'
-    winget install --id Git.Git --exact --silent --accept-package-agreements --accept-source-agreements
+    # --source winget: skip the msstore source, which fails with certificate
+    # errors (0x8a15005e) on many fresh VPS / Server images.
+    winget install --id Git.Git --exact --source winget --silent --accept-package-agreements --accept-source-agreements
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "git install failed (winget exit $LASTEXITCODE - see output above)."
+    }
     Update-SessionPath
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
         Write-Error 'git installed but not yet on PATH - open a NEW terminal and rerun this one-liner.'
