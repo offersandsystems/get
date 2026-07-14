@@ -5,7 +5,7 @@ Public installers for the OAS / HOP agent stack. One line on a fresh machine:
 **Windows** (PowerShell — type `powershell` first if you're in Command Prompt):
 
 ```powershell
-iwr -useb https://raw.githubusercontent.com/offersandsystems/get/main/bootstrap.ps1 | iex
+irm https://raw.githubusercontent.com/offersandsystems/get/main/bootstrap.ps1 | iex
 ```
 
 **macOS** (no sudo):
