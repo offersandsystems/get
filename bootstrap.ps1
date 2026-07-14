@@ -125,24 +125,31 @@ Write-Host ''
 # Stop logging before the interactive agent session begins.
 try { Stop-Transcript | Out-Null } catch {}
 
+# Interactive children must be launched via Start-Process: under `iwr | iex`
+# the session's inherited stdin is the exhausted pipeline, so node/claude
+# readline sees instant EOF ("input closed before a selection was made").
+# Start-Process gives the child fresh console handles instead.
+function Start-InteractiveInRepo([string]$CommandName) {
+    Start-Process -FilePath 'powershell' -NoNewWindow -Wait `
+        -ArgumentList '-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', "Set-Location '$RepoPath'; $CommandName"
+}
+
 $launch = $env:HOP_BOOTSTRAP_LAUNCH
 if ($launch -eq 'no') {
     Write-Host 'Launch skipped (HOP_BOOTSTRAP_LAUNCH=no). Headless auth: set ANTHROPIC_API_KEY.'
 } elseif (Get-Command hop-claude -ErrorAction SilentlyContinue) {
     $ans = Read-Host 'Start HOP onboarding now? [Y/n]'
     if ($ans -notmatch '^\s*n') {
-        Set-Location $RepoPath
         Write-Host '-- launching onboarding (first Claude launch will ask you to sign in + trust the workspace)...'
-        hop-claude
+        Start-InteractiveInRepo 'hop-claude'
     } else {
         Write-Host "Next: cd `"$RepoPath`" ; hop-claude   # boot screen + onboarding"
     }
 } elseif (Get-Command claude -ErrorAction SilentlyContinue) {
     $ans = Read-Host 'Launch Claude now to sign in? [Y/n]'
     if ($ans -notmatch '^\s*n') {
-        Set-Location $RepoPath
         Write-Host '-- launching Claude (sign in, then accept the workspace trust prompt)...'
-        claude
+        Start-InteractiveInRepo 'claude'
     } else {
         Write-Host "Next: cd `"$RepoPath`" ; claude   # log in + accept workspace trust"
     }
